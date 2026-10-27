@@ -1,6 +1,6 @@
 # POND — case study
 
-*Draw on a painted pond and what you drew comes to life.*
+*Draw on a painted pond and what you drew comes to life.* — [pond-interactive.vercel.app](https://pond-interactive.vercel.app)
 
 ![The pond](docs/media/01-pond.jpg)
 

@@ -25,9 +25,10 @@ Built autonomously from the brief, milestone by milestone, starting from a study
 - `scripts/demo.mjs 1600 900`: H.264 MP4, 1600×900, 1547 frames in 25.96 s (≈59 fps); contact sheet in `docs/media/demo-contact-sheet.jpg`. Story: a fish blooms in and swims → a lily pad → the fish slips under it → a duck dabbles → a frog drawn on the bank hops onto the pad → feeding draws the fish out → rain.
 - `scripts/perf.mjs`: 8.7 ms/frame with 15 creatures at 1440×900 DPR 1; 17.7 ms at DPR 2 (load average ≈ 5.4 during the run).
 
+- Deployed on 2026-10-27 at the author's request: https://pond-interactive.vercel.app (Vercel project `pond-interactive`). Checked live: renders at 60 fps headless, drawing a fish works, no page errors.
+
 ## Known gaps, said plainly
 
 - Only Chromium has been tested (desktop and emulated mobile); Safari and Firefox are untested.
 - The leap's height is legible mainly through its shadow and splash from this camera angle.
 - Recognition is heuristic and can misread lumpy loops (the picker and the instead-chip cover it).
-- Not deployed: `npx vercel --prod` is ready to run (`vercel.json` is in place) but waits for the author's go-ahead to make it public.

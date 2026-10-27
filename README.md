@@ -2,6 +2,8 @@
 
 **Draw on a painted pond and what you drew comes to life.**
 
+**Live: [pond-interactive.vercel.app](https://pond-interactive.vercel.app)**
+
 POND is a small hand-painted pond in the browser, floating as a tile on a sheet of paper. Draw a long loop on the water and a koi blooms into it like a drop of watercolour; a loop with a head on top becomes a duck, a round one a lily pad; a small loop on the bank or on a pad becomes a frog. Then they live their small lives: fish glide and hide under the pads, ducks paddle and dabble with their tails in the air, frogs sit, hop and catch flies, and ripples spread from everything that touches the water.
 
 It is the sibling of [MEADOW](https://github.com/Mariaareadne1/meadow-interactive) (draw a loop, get a sheep): same painted light, same tile-on-paper, same interaction grammar, new world and new creatures.
@@ -105,6 +107,10 @@ QA scripts (need the dev server; write to `artifacts/`, gitignored):
 | `node scripts/perf.mjs` | Back-to-back frame timings with a GPU sync |
 
 Headless Chromium must use `--use-angle=metal` on macOS; SwiftShader is far too slow.
+
+## Deploying
+
+Live at **https://pond-interactive.vercel.app** (Vercel project `pond-interactive`). Deploy a new version with `npx vercel --prod` from the repo root; `vercel.json` sets the Vite build, long-lived caching for hashed assets and basic security headers, and `.vercelignore` keeps local artifacts and media out of uploads. It is a static site: no server, keys or environment variables.
 
 ## Credits and licences
 
