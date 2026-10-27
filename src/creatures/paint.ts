@@ -99,8 +99,9 @@ vec3 duckAlbedo(inout float alpha, inout float softness, inout float keep, vec3 
     float scal = smoothstep(0.7, 0.95, sin(p.x * 60.0 + abs(p.z) * 30.0) * sin(p.z * 50.0));
     c *= 1.0 - scal * 0.04 * smoothstep(0.1, 0.2, p.y);
     c = mix(c, c * 1.05 + 0.02 * uFlush, uFlush);
-    softness = 0.4;
-    keep = 0.12;
+    // white feathers take the shade gently: a cool grey, never lilac
+    softness = 0.45;
+    keep = 0.3;
     return grain(c, 50.0);
   }
   if (uPart < 11.5) {
@@ -171,8 +172,9 @@ vec3 frogAlbedo(inout float alpha, inout float softness, inout float keep, vec3 
     return grain(c, 55.0);
   }
   if (uPart < 21.5) {
-    vec3 c = mix(green, green * 0.7, smoothstep(0.5, 0.9, sin(p.x * 40.0) * 0.5 + 0.5) * 0.5);
-    c = mix(c, belly, smoothstep(-0.03, -0.08, p.y) * 0.6);
+    vec3 c = mix(green, green * 0.72, smoothstep(0.5, 0.9, sin(p.x * 40.0) * 0.5 + 0.5) * 0.45);
+    // only the soles and the undersides pale toward cream
+    c = mix(c, mix(green, belly, 0.45), smoothstep(-0.1, -0.16, p.y) * 0.8);
     softness = 0.3;
     return grain(c, 55.0);
   }

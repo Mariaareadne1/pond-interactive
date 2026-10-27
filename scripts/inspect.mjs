@@ -1,5 +1,5 @@
-// Close-ups of each creature from four angles, plus the app camera.
-// node scripts/inspect.mjs <prefix> [names...]   (needs the dev server)
+// Close-ups of each creature from four angles (ids from ?showcase).
+// node scripts/inspect.mjs <prefix> [ids...]   (needs the dev server)
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
@@ -9,8 +9,13 @@ const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-gp
 const page = await browser.newPage({ viewport: { width: 900, height: 700 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 page.on('console', (m) => m.type() === 'error' && console.log('[console]', m.text()));
-await page.goto(`${process.env.POND_URL ?? 'http://localhost:5366/'}?${process.env.POND_QUERY ?? 'inspect'}`);
-await page.waitForFunction(() => window.__pond?.views && Object.keys(window.__pond.views).length > 0, null, { timeout: 90000 });
+await page.goto(`${process.env.POND_URL ?? 'http://localhost:5366/'}?${process.env.POND_QUERY ?? 'showcase'}`);
+await page.waitForFunction(() => window.__pond && !window.__pond.store.get().loading, null, { timeout: 90000 });
+await page.evaluate(() => {
+  const p = window.__pond;
+  p.store.set({ uiHidden: true });
+  p.views = Object.fromEntries(p.engine.pond.ids().map((id) => [id, p.engine.pond.get(id).view]));
+});
 await page.waitForTimeout(800);
 await page.screenshot({ path: `artifacts/${prefix}-scene.png` });
 const names = only.length ? only : await page.evaluate(() => Object.keys(window.__pond.views));

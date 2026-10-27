@@ -154,7 +154,7 @@ export class FishController extends Controller<FishKey, FishState> {
             break;
           }
           const d = Math.hypot(pad.x - this.x, pad.z - this.z);
-          if (d > pad.radius * 0.35) this.seek(pad.x, pad.z, 0.9 * s, dt, 2.0);
+          if (d > pad.radius * 0.35) this.seek(pad.x, pad.z, 1.35 * s, dt, 3.2);
           else {
             // tucked in: drift slowly with the pad, nose turning a little
             this.x += (pad.x - this.x) * Math.min(1, dt * 0.8);
