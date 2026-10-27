@@ -26,8 +26,15 @@ export function InsteadChip({ app }: { app: PondApp }) {
       const x = Math.min(app.rect.width - el.offsetWidth - 12, Math.max(12, (minX + maxX) / 2 - el.offsetWidth / 2));
       el.style.transform = `translate(${x.toFixed(1)}px, ${Math.max(8, minY - el.offsetHeight - 14).toFixed(1)}px)`;
     };
+    // follow the creature only while it forms, then hold still so it's easy to tap
+    const started = performance.now();
     update();
-    return app.engine.onBeforeRender(update);
+    const off = app.engine.onBeforeRender(() => {
+      if (performance.now() - started < 400) update();
+    });
+    return () => {
+      off();
+    };
   }, [app, offer]);
 
   if (!offer) return null;

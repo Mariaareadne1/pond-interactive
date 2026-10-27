@@ -83,7 +83,19 @@ export class DuckController extends Controller<DuckKey, DuckState> {
       }
       return true;
     };
-    const plan = candidates.find(fits) ?? candidates.find((p) => isWater(flightAt(p, FLY.duration).x, flightAt(p, FLY.duration).z, 0.4));
+    // of the plans that fit, the one whose loop circles closest to the middle of the pond
+    const loopCentre = (p: FlightPlan) => {
+      let x = 0;
+      let z = 0;
+      for (let i = 0; i < 8; i++) {
+        const q = flightAt(p, FLY.climbEnd + ((FLY.loopEnd - FLY.climbEnd) * i) / 8);
+        x += q.x / 8;
+        z += q.z / 8;
+      }
+      return Math.hypot(x - 0.6, z + 0.3);
+    };
+    const fitting = candidates.filter(fits).sort((a, b) => loopCentre(a) - loopCentre(b));
+    const plan = fitting[0] ?? candidates.find((p) => isWater(flightAt(p, FLY.duration).x, flightAt(p, FLY.duration).z, 0.4));
     // nowhere good to go (a tight corner): a short hop of a loop on the spot
     return plan ?? { x: this.x, z: this.z, heading: this.heading, radius: 1.2, turn: 1 };
   }

@@ -57,7 +57,7 @@ export const LEAP = {
   /** Forward travel over the whole leap (m, at size 1). */
   travel: 2.8,
   /** Apex height of the body above the surface (m, at size 1). */
-  height: 1.05,
+  height: 1.4,
 } as const;
 
 /** Forward distance travelled by time t of a leap (size 1). Monotonic, 0 → LEAP.travel. */

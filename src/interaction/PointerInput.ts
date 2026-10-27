@@ -14,6 +14,7 @@ import { analyzeStroke, smooth, type Pt } from './stroke';
 type Gesture =
   | { kind: 'none' }
   | { kind: 'press-creature'; id: string; x: number; y: number; pointerId: number }
+  | { kind: 'press-pad'; id: string; points: Pt[]; pointerId: number }
   | { kind: 'drag'; id: string; pointerId: number }
   | { kind: 'stroke'; points: Pt[]; pointerId: number }
   | { kind: 'press-empty'; pointerId: number };
@@ -77,6 +78,12 @@ export class PointerInput {
       return;
     }
     const id = this.app.pickAt(e.clientX, e.clientY);
+    // with the pen, a stroke that starts on an unselected lily pad draws (a frog on the pad);
+    // a tap selects it, and a selected pad drags as usual
+    if (id && state.tool === 'draw' && this.app.store.doc.creatures.find((c) => c.id === id)?.kind === 'lily' && state.selectedId !== id) {
+      this.gesture = { kind: 'press-pad', id, points: [this.local(e)], pointerId: e.pointerId };
+      return;
+    }
     if (id) {
       this.app.select(id);
       this.gesture = { kind: 'press-creature', id, x: e.clientX, y: e.clientY, pointerId: e.pointerId };
@@ -101,6 +108,17 @@ export class PointerInput {
       return;
     }
     if ('pointerId' in g && g.pointerId !== e.pointerId) return;
+    if (g.kind === 'press-pad') {
+      g.points.push(this.local(e));
+      const p0 = g.points[0];
+      if (Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > DRAG_THRESHOLD) {
+        this.gesture = { kind: 'stroke', points: g.points, pointerId: g.pointerId };
+        this.overlay.begin();
+        this.overlay.update(g.points, false);
+        this.app.store.set({ selectedId: null });
+      }
+      return;
+    }
     if (g.kind === 'press-creature') {
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > DRAG_THRESHOLD) {
         this.app.beginDrag(g.id, g.x, g.y);
@@ -129,6 +147,7 @@ export class PointerInput {
     this.gesture = { kind: 'none' };
     if (g.kind === 'drag') this.app.endDrag();
     else if (g.kind === 'press-empty') this.app.select(null);
+    else if (g.kind === 'press-pad') this.app.select(g.id);
     else if (g.kind === 'stroke') this.finishStroke(g.points);
     this.updateHover(e.clientX, e.clientY);
   };

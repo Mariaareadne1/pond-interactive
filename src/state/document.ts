@@ -119,7 +119,7 @@ export function parseDoc(input: unknown): PondDoc | null {
       kind,
       x,
       z,
-      heading: Math.atan2(Math.sin(r.heading), Math.cos(r.heading)),
+      heading: Math.abs(r.heading) <= Math.PI ? r.heading : Math.atan2(Math.sin(r.heading), Math.cos(r.heading)),
       seed: Math.abs(Math.floor(r.seed)) % 1e6,
       size: isNum(r.size) ? Math.min(SIZE_MAX, Math.max(SIZE_MIN, r.size)) : 1,
     };

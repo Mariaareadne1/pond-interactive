@@ -66,9 +66,10 @@ export class FrogView extends CreatureView {
     const lid = 1 - 0.85 * Math.min(1, p.blink);
     for (const e of this.eyes) e.scale.set(0.86, 0.78 * lid, 0.86);
     // the throat pulses gently, and balloons when it croaks
-    const t = 1 + p.throat * 0.12 + p.croak * 0.9;
-    this.throat.scale.set(0.9 + p.croak * 0.5, t * 0.85, 0.95 + p.croak * 0.6);
-    this.throat.position.y = 0.1 - p.croak * 0.03;
+    const t = 1 + p.throat * 0.12 + p.croak * 1.3;
+    this.throat.scale.set(0.9 + p.croak * 1.1, t * 0.85, 0.95 + p.croak * 1.2);
+    // the balloon swells forward out from under the chin, so it reads from above
+    this.throat.position.set(0.27 + p.croak * 0.1, 0.1 + p.croak * 0.04, 0);
     this.uniforms.uFlush.value = p.croak;
     this.tongue.visible = p.tongue > 0.02;
     this.tongue.scale.set(Math.max(0.01, p.tongue), 1, 1);
