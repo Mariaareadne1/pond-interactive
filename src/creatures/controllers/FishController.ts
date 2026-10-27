@@ -1,7 +1,9 @@
-import { Controller, headingTo, type PondSense } from './base';
+import { Controller, headingTo, wrapAngle, type PondSense } from './base';
 import { fishPose, HIDE_DEPTH, LEAP, leapHeight, leapTravel, SWIM_DEPTH, type FishState } from '../behaviors/fish';
 import { FISH_KEYS, type FishKey, type Frame } from '../pose';
-import { clampToWater, isWater, shoreGradient, WATER_Y } from '../../scene/pondShape';
+import { isWater, WATER_Y } from '../../scene/pondShape';
+import { waterRegion } from '../habitat';
+import { avoidRate, recover, slide } from './steer';
 import { noise2 } from '../../scene/noise';
 
 const LEASH = 4.2;
@@ -16,7 +18,9 @@ const SCHOOL_TIME = 16;
  */
 export class FishController extends Controller<FishKey, FishState> {
   private phase = 0;
-  private turnRate = 0;
+  private leapHeading = 0;
+  /** The body's bend into a turn, eased from the angular velocity. */
+  private bend = 0;
   private target: { x: number; z: number } | null = null;
   private padId: string | null = null;
   private leaderId: string | null = null;
@@ -63,66 +67,61 @@ export class FishController extends Controller<FishKey, FishState> {
 
   leap(): void {
     if (this.state === 'leap') return;
-    this.chooseLeapHeading();
+    this.leapHeading = this.chooseLeapHeading();
     this.lastTravel = 0;
     this.splashed = { launch: false, reentry: false };
     this.enter('leap', 0.2);
   }
 
-  /** Turn toward open water so the leap always lands back in the pond. */
-  private chooseLeapHeading(): void {
+  /** A heading toward open water, so the leap always lands back in the pond (turned to during the dive). */
+  private chooseLeapHeading(): number {
     const reach = LEAP.travel * this.scale * 1.15;
     for (const d of [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3, 1.9, -1.9, 2.6, -2.6, Math.PI]) {
       const h = this.heading + d;
       const ok = [0.5, 1].every((f) => isWater(this.x + Math.cos(h) * reach * f, this.z - Math.sin(h) * reach * f, 0.5 * this.scale));
-      if (ok) {
-        this.heading = h;
-        return;
-      }
+      if (ok) return h;
     }
+    return this.heading;
   }
 
-  private avoidShore(dt: number, speed: number): void {
-    const look = 0.9 * this.scale + speed * 1.2;
-    const ax = this.x + Math.cos(this.heading) * look;
-    const az = this.z - Math.sin(this.heading) * look;
-    if (!isWater(ax, az, 0.45 * this.scale)) {
-      const [gx, gz] = shoreGradient(ax, az);
-      this.turnRate += this.steerToward(Math.atan2(gz, -gx), 2.4, dt) / Math.max(dt, 1e-4);
-    }
+  private get region() {
+    return waterRegion(0.3 * this.scale);
   }
 
-  private wander(dt: number): void {
-    const n = noise2(this.time * 0.22, this.seed * 3.1);
-    this.turnRate += n * 0.9;
-    this.heading += n * 0.9 * dt;
-    if (Math.hypot(this.anchorX - this.x, this.anchorZ - this.z) > LEASH * Math.max(1, this.scale)) {
-      this.turnRate += this.steerToward(headingTo(this.x, this.z, this.anchorX, this.anchorZ), 1.0, dt) / Math.max(dt, 1e-4);
-    }
+  /** How hard to turn away from the bank ahead (continuous, never on/off). */
+  private avoid(speed: number, wanted: number): number {
+    return avoidRate(this.region, this.x, this.z, this.heading, 0.9 * this.scale + speed * 1.2, 2.6, this.prefer(wanted));
+  }
+
+  /** Unhurried wandering, drawn gently back toward home when it strays. */
+  private wanderRate(): number {
+    const n = noise2(this.time * 0.22, this.seed * 3.1) * 0.9;
+    const away = Math.hypot(this.anchorX - this.x, this.anchorZ - this.z) / (LEASH * Math.max(1, this.scale));
+    const pull = Math.min(1, Math.max(0, (away - 1) / 0.3));
+    return n * (1 - pull) + this.rateToward(headingTo(this.x, this.z, this.anchorX, this.anchorZ), 1.0) * pull;
   }
 
   private move(distance: number): void {
-    let nx = this.x + Math.cos(this.heading) * distance;
-    let nz = this.z - Math.sin(this.heading) * distance;
-    if (!isWater(nx, nz, 0.3 * this.scale)) [nx, nz] = clampToWater(nx, nz, 0.3 * this.scale);
-    this.x = nx;
-    this.z = nz;
+    [this.x, this.z] = slide(this.region, this.x, this.z, this.heading, distance);
   }
 
   private seek(tx: number, tz: number, speed: number, dt: number, rate = 1.8): number {
     const d = Math.hypot(tx - this.x, tz - this.z);
-    this.turnRate += this.steerToward(headingTo(this.x, this.z, tx, tz), rate, dt) / Math.max(dt, 1e-4);
-    // slow down on arrival, and while still turning hard
-    const v = speed * Math.min(1, d / (0.8 * this.scale));
-    this.avoidShore(dt, v);
+    const want = headingTo(this.x, this.z, tx, tz);
+    // slow down on arrival, and to turn when the target is off to one side (so it never circles it)
+    const facing = Math.cos(wrapAngle(want - this.heading));
+    const v = speed * Math.min(1, d / (0.8 * this.scale)) * Math.max(0.2, (facing + 1) / 2) ** 1.5;
+    const toward = this.rateToward(want, rate);
+    this.turnAt(toward + this.avoid(v, toward), dt);
     this.move(v * dt);
     return d;
   }
 
   update(dt: number, sense: PondSense): Frame<FishKey> {
     this.advance(dt);
-    this.turnRate = 0;
     const s = this.scale;
+    // dragged, undone or dropped somewhere it can't swim: ease back into open water
+    if (!this.held && this.state !== 'leap') [this.x, this.z] = recover(this.region, this.x, this.z, dt, 0);
     const quick = this.minnow ? 1.35 : 1;
     let depth = SWIM_DEPTH * s;
 
@@ -130,8 +129,8 @@ export class FishController extends Controller<FishKey, FishState> {
       switch (this.state) {
         case 'swim': {
           const v = 0.42 * quick * s;
-          this.wander(dt);
-          this.avoidShore(dt, v);
+          const wander = this.wanderRate();
+          this.turnAt(wander + this.avoid(v, wander), dt);
           this.move(v * dt);
           break;
         }
@@ -159,7 +158,7 @@ export class FishController extends Controller<FishKey, FishState> {
             // tucked in: drift slowly with the pad, nose turning a little
             this.x += (pad.x - this.x) * Math.min(1, dt * 0.8);
             this.z += (pad.z - this.z) * Math.min(1, dt * 0.8);
-            this.heading += noise2(this.time * 0.2, this.seed) * 0.25 * dt;
+            this.turnAt(noise2(this.time * 0.2, this.seed) * 0.25, dt, 0.6);
           }
           const under = 1 - Math.min(1, Math.max(0, (d - pad.radius * 0.3) / pad.radius));
           depth = (SWIM_DEPTH + (HIDE_DEPTH - SWIM_DEPTH) * under) * s;
@@ -176,11 +175,14 @@ export class FishController extends Controller<FishKey, FishState> {
           const back = (1.3 + (this.seed % 3) * 0.45) * s;
           const tx = lead.x - Math.cos(lead.heading) * back + Math.sin(lead.heading) * side * 0.7 * s;
           const tz = lead.z + Math.sin(lead.heading) * back + Math.cos(lead.heading) * side * 0.7 * s;
+          // in its slot it swims with the leader; further back it closes in — blended, not switched
           const d = Math.hypot(tx - this.x, tz - this.z);
-          if (d < 0.4 * s) {
-            this.steerToward(lead.heading, 1.2, dt);
-            this.move(0.42 * s * dt);
-          } else this.seek(tx, tz, Math.min(1.4, 0.5 + d * 0.5) * s, dt, 2.2);
+          const k = Math.min(1, d / (1.2 * s));
+          const toSlot = headingTo(this.x, this.z, tx, tz);
+          const v = (0.42 + 0.9 * k) * s;
+          const toward = this.rateToward(lead.heading, 1.2) * (1 - k) + this.rateToward(toSlot, 2.2) * k;
+          this.turnAt(toward + this.avoid(v, toward), dt);
+          this.move(v * dt);
           break;
         }
         case 'feed': {
@@ -209,6 +211,9 @@ export class FishController extends Controller<FishKey, FishState> {
           break;
         }
         case 'leap': {
+          // turn to the open water during the dive, quickly but never in one frame
+          if (this.stateTime < LEAP.launch) this.turnAt(this.rateToward(this.leapHeading, 9, 9), dt, 0.06);
+          else this.turnAt(0, dt, 0.1);
           const travel = leapTravel(this.stateTime) * s;
           this.move(travel - this.lastTravel);
           this.lastTravel = travel;
@@ -233,8 +238,9 @@ export class FishController extends Controller<FishKey, FishState> {
 
     const pose = { ...fishPose(this.state, this.stateTime, this.seed) };
     if (this.minnow) pose.rate *= 1.3;
-    // the body arcs into its turns
-    pose.turn += Math.max(-0.6, Math.min(0.6, -this.turnRate * 0.35));
+    // the body arcs into its turns, following the eased turn rate
+    this.bend += (Math.max(-0.6, Math.min(0.6, -this.angVel * 0.35)) - this.bend) * Math.min(1, dt / 0.15);
+    pose.turn += this.bend;
     const shown = this.shown(pose);
     this.phase += shown.rate * dt;
     const y = this.state === 'leap' ? WATER_Y + leapHeight(this.stateTime) * s : WATER_Y - depth - shown.sink * s;

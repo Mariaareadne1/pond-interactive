@@ -50,7 +50,7 @@ Needs a browser with WebGL 2. Useful URLs:
 | | Actions |
 |---|---|
 | Fish | **Come here** (then tap the water, or press `C` with the pointer over it) · **Hide** under the nearest pad · **Leap** · **School** (with 3+ fish) |
-| Duck | **Dabble** (on the bank: **Nibble**) · **Preen** · **Fly** a loop over the pond · **Ducklings** (a smaller duck that follows in a line). On the bank it waddles; drag it between bank and water and it switches. |
+| Duck | **Dabble** (on the bank: **Nibble**) · **Preen** · **Fly** a loop over the pond · **Ducklings** (a smaller duck that follows in a line). On the bank it waddles. Ducks wander in and out of the water on their own (ducklings follow), and you can drag one either way. |
 | Lily pad | **Bloom** / **Close** · **Drift** · **Invite a frog** |
 | Frog | **Hop** to the nearest pad or along the bank · **Catch a fly** · **Croak** (with a soft sound only if Sound is on in the menu) |
 | Everything | Turn ↺ ↻ · Duplicate · Remove · drag to move (it shrinks as it goes farther away) |

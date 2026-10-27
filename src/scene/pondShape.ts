@@ -79,6 +79,19 @@ export function onJetty(x: number, z: number, margin = 0): boolean {
   return u > -margin - 0.2 && u < JETTY.length + margin && Math.abs(v) < JETTY.width / 2 + margin;
 }
 
+/** Signed distance (m) to the jetty's footprint: negative under it. */
+export function jettySDF(x: number, z: number): number {
+  const c = Math.cos(JETTY.yaw);
+  const s = Math.sin(JETTY.yaw);
+  const dx = x - JETTY.x;
+  const dz = z - JETTY.z;
+  const u = dx * c - dz * s - (JETTY.length - 0.2) / 2;
+  const v = dx * s + dz * c;
+  const qx = Math.abs(u) - (JETTY.length + 0.2) / 2;
+  const qz = Math.abs(v) - JETTY.width / 2;
+  return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
+}
+
 /** Margins that keep creatures clear of the shore and the paper. */
 export const BOUNDS = {
   /** Swimmers keep at least this far out from the shore. */

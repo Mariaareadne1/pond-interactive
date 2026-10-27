@@ -12,7 +12,8 @@ export function sitPose(t: number, seed: number): Pose<FrogKey> {
   const p = emptyPose(FROG_KEYS);
   p.throat = Math.sin(t * 5.2 + seed) * 0.5 + 0.5;
   p.blink = pulse(t, seed, 3.1, 0.06, 1);
-  p.headYaw = 0.35 * wob(t * 0.15, seed, 2) + 0.3 * pulse(t, seed, 6.3, 0.6, 3) * Math.sign(wob(t * 0.1, seed, 4) || 1);
+  // a glance to one side now and then; its direction eases through zero so it never flips mid-glance
+  p.headYaw = 0.35 * wob(t * 0.15, seed, 2) + 0.3 * pulse(t, seed, 6.3, 0.6, 3) * Math.max(-1, Math.min(1, wob(t * 0.1, seed, 4) * 6));
   // a little settle of the body now and then, as if shifting its weight
   p.squash = 0.04 * pulse(t, seed, 5.7, 0.25, 5) + 0.01 * Math.sin(t * 5.2 + seed);
   return p;

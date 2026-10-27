@@ -1,6 +1,6 @@
 import { Controller, headingTo, wrapAngle, type PondSense } from './base';
 import { CATCH, CROAK, frogPose, HOP, hopHeight, hopTravel, type FrogState } from '../behaviors/frog';
-import { FROG_KEYS, type FrogKey, type Frame } from '../pose';
+import { FROG_KEYS, ramp, type FrogKey, type Frame } from '../pose';
 import { clampToBank, groundHeight, isBank } from '../../scene/pondShape';
 import { seededRandom } from '../../scene/noise';
 
@@ -19,7 +19,7 @@ export class FrogController extends Controller<FrogKey, FrogState> {
   /** The pad it sits on, and where on the pad (in the pad's own frame). */
   perch: string | null;
   private perchOffset = { u: 0, v: 0 };
-  private hop: { from: { x: number; z: number; y: number }; to: HopTarget; landed: boolean } | null = null;
+  private hop: { from: { x: number; z: number; y: number; heading: number }; to: HopTarget; landed: boolean; heading: number } | null = null;
   private readonly rand: () => number;
   private y = 0;
 
@@ -58,8 +58,8 @@ export class FrogController extends Controller<FrogKey, FrogState> {
     if (this.state === 'hop') return false;
     const to = target ?? this.chooseHop(sense);
     if (!to) return false;
-    this.hop = { from: { x: this.x, z: this.z, y: this.y }, to, landed: false };
-    this.heading = headingTo(this.x, this.z, to.x, to.z);
+    // it turns to face the target while it crouches, rather than snapping round
+    this.hop = { from: { x: this.x, z: this.z, y: this.y, heading: this.heading }, to, landed: false, heading: headingTo(this.x, this.z, to.x, to.z) };
     this.enter('hop', 0.12);
     return true;
   }
@@ -123,6 +123,7 @@ export class FrogController extends Controller<FrogKey, FrogState> {
       const tz = live ? live.z : h.to.z;
       const ty = live ? live.y : groundHeight(tx, tz);
       const k = hopTravel(this.stateTime);
+      this.heading = wrapAngle(h.from.heading + wrapAngle(h.heading - h.from.heading) * ramp(this.stateTime, 0, HOP.launch));
       const dist = Math.hypot(tx - h.from.x, tz - h.from.z);
       this.x = h.from.x + (tx - h.from.x) * k;
       this.z = h.from.z + (tz - h.from.z) * k;

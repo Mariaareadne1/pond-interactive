@@ -1,4 +1,4 @@
-import { clampToBank, clampToWater, isBank, isWater, pondSDF } from '../scene/pondShape';
+import { BOUNDS, clampToBank, clampToWater, edgeDistance, isBank, isWater, jettySDF, pondSDF } from '../scene/pondShape';
 import type { Kind } from './types';
 
 /**
@@ -29,3 +29,16 @@ export function clampDuck(x: number, z: number): [number, number] {
   const b = clampToBank(x, z);
   return Math.hypot(w[0] - x, w[1] - z) <= Math.hypot(b[0] - x, b[1] - z) ? w : b;
 }
+
+// --- regions for smooth steering: how far (m) a point is inside where a creature may go ---
+
+/** Open water, keeping `clearance` from the shore and clear of the jetty. */
+export const waterRegion = (clearance: number) => (x: number, z: number): number =>
+  Math.min(-pondSDF(x, z) - clearance, jettySDF(x, z) - 0.45);
+
+/** The bank: off the shore, inside the tile's painted edge, off the jetty. */
+export const bankRegion = (x: number, z: number): number =>
+  Math.min(pondSDF(x, z) - BOUNDS.bankClearance, edgeDistance(x, z) - BOUNDS.edge, jettySDF(x, z) - 0.1);
+
+/** Anywhere a duck can walk or swim: the whole tile but the paper edge and the jetty. */
+export const duckRegion = (x: number, z: number): number => Math.min(edgeDistance(x, z) - BOUNDS.edge, jettySDF(x, z) - 0.1);

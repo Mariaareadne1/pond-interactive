@@ -95,11 +95,12 @@ export class DuckView extends CreatureView {
     this.wingL.visible = this.wingR.visible = open > 0.06;
     const lid = 1 - 0.9 * Math.min(1, p.blink);
     for (const e of this.eyes) e.scale.set(1, lid, 0.55);
-    const paddle = p.paddle;
-    this.feet[0].rotation.set(0, 0.25, Math.sin(paddle) * 0.7);
-    this.feet[1].rotation.set(0, -0.25, Math.sin(paddle + Math.PI) * 0.7);
-    this.legs[0].rotation.z = Math.sin(paddle) * 0.35;
-    this.legs[1].rotation.z = Math.sin(paddle + Math.PI) * 0.35;
+    // paddle is the feet's swing (-1..1); they work in turn
+    const swing = p.paddle;
+    this.feet[0].rotation.set(0, 0.25, swing * 0.7);
+    this.feet[1].rotation.set(0, -0.25, -swing * 0.7);
+    this.legs[0].rotation.z = swing * 0.35;
+    this.legs[1].rotation.z = -swing * 0.35;
     // tucked away in flight
     const tuck = Math.min(1, p.lift * 2);
     for (const foot of this.feet) foot.position.x = 0.02 - tuck * 0.18;

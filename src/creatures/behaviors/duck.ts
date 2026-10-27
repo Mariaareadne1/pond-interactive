@@ -8,7 +8,10 @@ import { DUCK_KEYS, emptyPose, pulse, ramp, ring, window4, type DuckKey, type Po
  * tested and it always comes back down onto the water.
  */
 
-export type DuckState = 'paddle' | 'dabble' | 'preen' | 'fly' | 'shake' | 'follow' | 'feed';
+export type DuckState = 'paddle' | 'dabble' | 'preen' | 'fly' | 'shake' | 'follow' | 'feed' | 'cross';
+
+/** Soft sign: ±1 away from zero, easing through it, so a glance never flips direction mid-way. */
+const softSign = (v: number) => Math.max(-1, Math.min(1, v * 6));
 
 const wob = (t: number, seed: number, lane: number) => noise2(t, seed * 11.3 + lane * 29.9);
 
@@ -17,34 +20,40 @@ function life(p: Pose<DuckKey>, t: number, seed: number): void {
   p.bob = 0.012 * Math.sin(t * 2.1 + seed) + 0.006 * Math.sin(t * 3.7);
   p.blink = pulse(t, seed, 3.4, 0.07, 1);
   const look = wob(t * 0.18, seed, 2);
-  p.headYaw = 0.5 * look + 0.25 * pulse(t, seed, 5.5, 0.4, 3) * Math.sign(look || 1);
+  p.headYaw = 0.5 * look + 0.25 * pulse(t, seed, 5.5, 0.4, 3) * softSign(look);
   p.headPitch = 0.06 * wob(t * 0.3, seed, 4);
   p.headRoll = 0.12 * pulse(t, seed, 7.1, 0.5, 5);
   p.tail = 0.6 * pulse(t, seed, 4.3, 0.12, 6) * Math.sin(t * 30);
   p.roll = 0.03 * Math.sin(t * 1.6 + seed);
 }
 
-/** Drifting along, feet working alternately beneath the surface. */
-export function paddlePose(t: number, seed: number, speed = 0.5): Pose<DuckKey> {
+/** How fast the feet cycle (rad/s) at a given speed — the controller integrates this into a stride phase. */
+export const strideRate = (speed: number, onLand: boolean) => (onLand ? 4 + 7 * speed : 3 + 6 * speed);
+
+/**
+ * Drifting along, feet working alternately beneath the surface. `paddle` in
+ * a pose is the feet's swing (-1..1), so it blends cleanly between states.
+ */
+export function paddlePose(t: number, seed: number, speed = 0.5, stride = t * strideRate(speed, false)): Pose<DuckKey> {
   const p = emptyPose(DUCK_KEYS);
   life(p, t, seed);
-  p.paddle = t * (3 + 6 * speed);
+  p.paddle = Math.sin(stride);
   p.pitch = -0.03 * speed;
   return p;
 }
 
 /** On the bank: a waddle — rolling side to side on short steps, head nodding with each one. */
-export function waddlePose(t: number, seed: number, speed = 0.5): Pose<DuckKey> {
+export function waddlePose(t: number, seed: number, speed = 0.5, stride = t * strideRate(speed, true)): Pose<DuckKey> {
   const p = emptyPose(DUCK_KEYS);
   life(p, t, seed);
-  const step = t * (4 + 7 * speed);
+  const step = stride;
   const sway = Math.min(1, speed * 1.6 + 0.15);
   p.roll = 0.13 * Math.sin(step) * sway;
   p.bob = 0.018 * Math.abs(Math.sin(step)) * sway;
   p.headPitch += 0.09 * Math.sin(step * 2) * sway;
   p.tail += 0.12 * Math.sin(step) * sway;
-  // feet swing forward and back in turn (the paddle phase drives them)
-  p.paddle = step;
+  // feet swing forward and back in turn
+  p.paddle = Math.sin(step);
   p.pitch = 0.05 - 0.02 * speed;
   return p;
 }
@@ -75,7 +84,7 @@ export function dabblePose(t: number, seed: number): Pose<DuckKey> {
   p.headYaw *= 1 - down;
   // tail up and wiggling while the head is under
   p.tail = down * (0.4 + 0.5 * Math.sin(t * 22) * window4(t, 0.8, 1.0, 1.7, 1.9));
-  p.paddle = t * 14 * down + t * 4;
+  p.paddle = Math.sin(t * 14 * down + t * 4);
   // the pop back up overshoots a little, then a quick head shake
   p.pitch += 0.18 * ring(t - 2.45, 9, 4);
   p.headYaw += 0.5 * Math.sin((t - 2.6) * 30) * window4(t, 2.55, 2.65, 3.0, 3.2);
@@ -191,7 +200,7 @@ export function flyPose(t: number, seed: number): Pose<DuckKey> {
   p.wingR = beat;
   p.pitch = 0.25 * window4(t, 0.2, 0.6, F.runEnd, F.climbEnd) - 0.06 * airborne;
   p.neck = 0.15 * airborne;
-  p.paddle = t * 26 * (1 - airborne);
+  p.paddle = Math.sin(t * 26) * (1 - airborne);
   // bank into the loop
   p.roll = 0.35 * window4(t, F.climbEnd, F.climbEnd + 0.5, F.loopEnd - 0.5, F.loopEnd);
   // splash down: a squash and a nose-up skid
@@ -200,12 +209,12 @@ export function flyPose(t: number, seed: number): Pose<DuckKey> {
   return p;
 }
 
-export function duckPose(state: DuckState, t: number, seed: number, speed = 0.5, onLand = false): Pose<DuckKey> {
+export function duckPose(state: DuckState, t: number, seed: number, speed = 0.5, onLand = false, stride = t * strideRate(speed, onLand)): Pose<DuckKey> {
   switch (state) {
     case 'dabble': return onLand ? nibblePose(t, seed) : dabblePose(t, seed);
     case 'preen': return preenPose(t, seed);
     case 'fly': return flyPose(t, seed);
     case 'shake': return shakePose(t, seed);
-    default: return onLand ? waddlePose(t, seed, speed) : paddlePose(t, seed, speed);
+    default: return onLand ? waddlePose(t, seed, speed, stride) : paddlePose(t, seed, speed, stride);
   }
 }

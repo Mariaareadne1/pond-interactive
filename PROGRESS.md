@@ -18,7 +18,7 @@ Built autonomously from the brief, milestone by milestone, starting from a study
 ## Verification (latest run)
 
 - `npm run typecheck`, `npm run lint`: clean.
-- `npm test`: 55 unit tests pass.
+- `npm test`: 63 unit tests pass.
 - `npm run test:e2e`: 18 Playwright tests pass against the dev server; `E2E_PROD=1 npm run test:e2e`: the same 18 against the production build.
 - `npm run build`: passes (three.js dominates the bundle, as in MEADOW).
 - `scripts/verify-recording.mjs`: H.264 MP4, 1280×720, 237 frames in 3.98 s (≈59.5 fps).
@@ -30,6 +30,7 @@ Built autonomously from the brief, milestone by milestone, starting from a study
 ## After launch
 
 - Ducks can live on land as well as water (2026-10-27): draw one on the bank (a loop with a head on top, or Duck in the picker) and it stands on short legs, waddles, nibbles instead of dabbling, and can fly off to the pond. Dragging moves a duck freely between bank and water.
+- Smooth motion (2026-10-27): fixed fish tails and ducks jittering (raw steering fed to the tail bend, shore avoidance toggling, shore snapping, a flipping glance, time × speed stride phases) with one eased steering model; ducks now go in and out of the water as they please, ducklings following. Covered by a smoothness test suite.
 
 ## Known gaps, said plainly
 
