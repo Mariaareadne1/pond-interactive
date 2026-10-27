@@ -5,7 +5,7 @@ import { FrogController } from '../../src/creatures/controllers/FrogController';
 import { LilyController } from '../../src/creatures/controllers/LilyController';
 import { EMPTY_SENSE, type PondSense } from '../../src/creatures/controllers/base';
 import { isFinitePose, DUCK_KEYS, FISH_KEYS, FROG_KEYS, type Frame } from '../../src/creatures/pose';
-import { edgeDistance, isBank, isWater } from '../../src/scene/pondShape';
+import { edgeDistance, groundHeight, isBank, isWater } from '../../src/scene/pondShape';
 import { seededRandom } from '../../src/scene/noise';
 import { LEAP } from '../../src/creatures/behaviors/fish';
 import { FLY } from '../../src/creatures/behaviors/duck';
@@ -72,6 +72,36 @@ describe('controllers under rapid, random input', () => {
       expect(frame.y).toBe(0);
       expect(d.state).toBe('paddle');
     }
+  });
+
+  test('a duck on the bank waddles about, stays on dry ground and stands above it', () => {
+    const d = new DuckController(6, -11, 7.5, 0, null);
+    d.scale = 1.9;
+    expect(d.onLand).toBe(true);
+    let moved = 0;
+    let last = d.update(0, EMPTY_SENSE);
+    for (let i = 0; i < 3600; i++) {
+      if (i === 600) d.dabble();
+      if (i === 1200) d.preen();
+      const f = d.update(1 / 60, EMPTY_SENSE);
+      expect(finiteFrame(f) && isFinitePose(DUCK_KEYS, f.pose)).toBe(true);
+      expect(isBank(f.x, f.z), `step ${i}`).toBe(true);
+      expect(f.y).toBeGreaterThan(groundHeight(f.x, f.z));
+      moved += Math.hypot(f.x - last.x, f.z - last.z);
+      last = f;
+    }
+    expect(moved).toBeGreaterThan(1);
+  });
+
+  test('a duck can take off from the bank and comes down on the water', () => {
+    const d = new DuckController(5, -11, 7.5, 0.6, null);
+    d.scale = 1.9;
+    d.fly();
+    let frame = d.update(0, EMPTY_SENSE);
+    for (let t = 0; t < FLY.duration + 1; t += 1 / 60) frame = d.update(1 / 60, EMPTY_SENSE);
+    expect(d.state).toBe('paddle');
+    expect(d.onLand).toBe(isBank(frame.x, frame.z));
+    expect(isWater(frame.x, frame.z, 0.3) || isBank(frame.x, frame.z)).toBe(true);
   });
 
   test('a duck mashed with actions never strands a pose', () => {

@@ -66,11 +66,24 @@ describe('the pond and its banks', () => {
     expect(isWater(4.6, 3.0)).toBe(false);
   });
 
-  test('frogs placed in the water are moved to the bank; ducks drawn on the bank go into the water', () => {
+  test('frogs placed in the water are moved to the bank; fish and pads on the bank go into the water', () => {
     const [fx, fz] = placeFor('frog', 0.6, -0.3);
     expect(isBank(fx, fz)).toBe(true);
-    const [dx, dz] = placeFor('duck', -11, 8);
-    expect(isWater(dx, dz, 0.5)).toBe(true);
+    for (const kind of ['fish', 'lily'] as const) {
+      const [x, z] = placeFor(kind, -11, 8);
+      expect(isWater(x, z, 0.5)).toBe(true);
+    }
+  });
+
+  test('ducks may stand on the bank or float on the water, and are nudged off the shoreline to the nearer one', () => {
+    expect(placeFor('duck', -11, 8)).toEqual([-11, 8]);
+    expect(placeFor('duck', 0.6, -0.3)).toEqual([0.6, -0.3]);
+    for (let i = 0; i < 100; i++) {
+      const x = Math.sin(i * 3.1) * 14;
+      const z = Math.cos(i * 1.7) * 10.5;
+      const [dx, dz] = placeFor('duck', x, z);
+      expect(isWater(dx, dz, 0.5) || isBank(dx, dz), `${x},${z}`).toBe(true);
+    }
   });
 });
 

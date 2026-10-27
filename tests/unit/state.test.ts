@@ -32,7 +32,7 @@ describe('the pond document', () => {
     for (const doc of [defaultDoc(), showcaseDoc()]) {
       expect(parseDoc(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
       for (const c of doc.creatures) {
-        if (c.kind === 'frog') expect(c.perch ? true : isBank(c.x, c.z), c.id).toBe(true);
+        if (c.kind === 'frog' || (c.kind === 'duck' && isBank(c.x, c.z))) expect(c.perch ? true : isBank(c.x, c.z), c.id).toBe(true);
         else expect(isWater(c.x, c.z, 0.5), c.id).toBe(true);
       }
     }
@@ -68,7 +68,7 @@ describe('validating untrusted files', () => {
     expect(f.pattern).toBe(3);
     expect(Math.abs(f.heading)).toBeLessThanOrEqual(Math.PI);
     const duck = doc.creatures[1];
-    expect(isWater(duck.x, duck.z, 0.5)).toBe(true);
+    expect(isWater(duck.x, duck.z, 0.5) || isBank(duck.x, duck.z)).toBe(true);
     const frog = doc.creatures[2];
     expect(isBank(frog.x, frog.z)).toBe(true);
     const lily = doc.creatures[3];

@@ -1,5 +1,6 @@
 import { clampToBank, clampToWater, isBank, isWater } from '../scene/pondShape';
 import { KINDS, type FlowerState, type Kind } from '../creatures/types';
+import { clampDuck } from '../creatures/habitat';
 
 /** The persisted pond: plain, versioned, immutable data. */
 
@@ -86,9 +87,10 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const ID = /^[\w-]{1,40}$/;
 const FLOWERS: readonly FlowerState[] = ['none', 'bud', 'open'];
 
-/** Put a creature somewhere it can live: water things in the pond, frogs on the bank (or their pad). */
+/** Put a creature somewhere it can live: fish and pads in the pond, frogs on the bank (or their pad), ducks on either. */
 export function placeFor(kind: Kind, x: number, z: number, onPad = false): [number, number] {
   if (kind === 'frog') return onPad || isBank(x, z) ? [x, z] : clampToBank(x, z);
+  if (kind === 'duck') return clampDuck(x, z);
   const clearance = kind === 'lily' ? 0.9 : 0.6;
   return isWater(x, z, clearance) ? [x, z] : clampToWater(x, z, clearance);
 }

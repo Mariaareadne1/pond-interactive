@@ -4,9 +4,9 @@ export const KINDS: readonly Kind[] = ['fish', 'duck', 'lily', 'frog'];
 
 export const KIND_LABEL: Record<Kind, string> = { fish: 'Fish', duck: 'Duck', lily: 'Lily pad', frog: 'Frog' };
 
-/** Where a creature lives. Ducks, fish and lily pads need water; frogs need a bank or a pad. */
-export type Habitat = 'water' | 'land';
-export const HABITAT: Record<Kind, Habitat> = { fish: 'water', duck: 'water', lily: 'water', frog: 'land' };
+/** Where a creature lives. Fish and lily pads need water; frogs need a bank or a pad; ducks take either. */
+export type Habitat = 'water' | 'land' | 'either';
+export const HABITAT: Record<Kind, Habitat> = { fish: 'water', duck: 'either', lily: 'water', frog: 'land' };
 
 export type FlowerState = 'none' | 'bud' | 'open';
 

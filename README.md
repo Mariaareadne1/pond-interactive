@@ -4,7 +4,7 @@
 
 **Live: [pond-interactive.vercel.app](https://pond-interactive.vercel.app)**
 
-POND is a small hand-painted pond in the browser, floating as a tile on a sheet of paper. Draw a long loop on the water and a koi blooms into it like a drop of watercolour; a loop with a head on top becomes a duck, a round one a lily pad; a small loop on the bank or on a pad becomes a frog. Then they live their small lives: fish glide and hide under the pads, ducks paddle and dabble with their tails in the air, frogs sit, hop and catch flies, and ripples spread from everything that touches the water.
+POND is a small hand-painted pond in the browser, floating as a tile on a sheet of paper. Draw a long loop on the water and a koi blooms into it like a drop of watercolour; a loop with a head on top becomes a duck, a round one a lily pad; a small loop on the bank or on a pad becomes a frog, and a loop with a head drawn on the bank is a duck out for a waddle. Then they live their small lives: fish glide and hide under the pads, ducks paddle and dabble with their tails in the air, frogs sit, hop and catch flies, and ripples spread from everything that touches the water.
 
 It is the sibling of [MEADOW](https://github.com/Mariaareadne1/meadow-interactive) (draw a loop, get a sheep): same painted light, same tile-on-paper, same interaction grammar, new world and new creatures.
 
@@ -39,17 +39,18 @@ Needs a browser with WebGL 2. Useful URLs:
 | Water | a long loop, or one with a tail notch | **Fish** — a koi, or a silver minnow if drawn small; it faces away from the tail |
 | Water | a loop with a bump on top at one end | **Duck**, facing its head |
 | Water | a roundish loop | **Lily pad**, sometimes with a bud or a flower |
+| Bank | a loop with a bump on top at one end | **Duck**, standing on the bank |
 | Bank or a lily pad | a small loop | **Frog** |
 | Anywhere | an in-between shape | the best guess, with a "Make it a … instead" chip for 3 s |
 
-**Draw: Auto · Fish · Duck · Lily · Frog** above the toolbar forces a kind. Drawing sets only where, how big (±15%), which way and what — never the shape of the model — so any loose loop makes a good creature. Paper, tiny scribbles and impossible places (a duck far up the bank, a frog in deep water) get a gentle message and the line shivers away.
+**Draw: Auto · Fish · Duck · Lily · Frog** above the toolbar forces a kind. Drawing sets only where, how big (±15%), which way and what — never the shape of the model — so any loose loop makes a good creature. Paper, tiny scribbles and impossible places (a fish far up the bank, a frog in deep water) get a gentle message and the line shivers away.
 
 ## What they do (click one)
 
 | | Actions |
 |---|---|
 | Fish | **Come here** (then tap the water, or press `C` with the pointer over it) · **Hide** under the nearest pad · **Leap** · **School** (with 3+ fish) |
-| Duck | **Dabble** · **Preen** · **Fly** a loop over the pond · **Ducklings** (a smaller duck that follows in a line) |
+| Duck | **Dabble** (on the bank: **Nibble**) · **Preen** · **Fly** a loop over the pond · **Ducklings** (a smaller duck that follows in a line). On the bank it waddles; drag it between bank and water and it switches. |
 | Lily pad | **Bloom** / **Close** · **Drift** · **Invite a frog** |
 | Frog | **Hop** to the nearest pad or along the bank · **Catch a fly** · **Croak** (with a soft sound only if Sound is on in the menu) |
 | Everything | Turn ↺ ↻ · Duplicate · Remove · drag to move (it shrinks as it goes farther away) |

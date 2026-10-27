@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { groundHeight, WATER_Y } from '../scene/pondShape';
 import { rootScale } from './scale';
+import { DUCK_LAND_LIFT, duckOnLand } from './habitat';
 import type { CreatureRecord } from '../state/document';
 
 /**
@@ -23,7 +24,10 @@ export interface FormationRequest {
 export function formationOrigin(r: CreatureRecord): THREE.Vector3 {
   const k = rootScale(r);
   if (r.kind === 'frog') return new THREE.Vector3(r.x, groundHeight(r.x, r.z) + 0.2 * k, r.z);
-  if (r.kind === 'duck') return new THREE.Vector3(r.x, WATER_Y + 0.12 * k, r.z);
+  if (r.kind === 'duck') {
+    const base = duckOnLand(r.x, r.z) ? Math.max(WATER_Y, groundHeight(r.x, r.z)) + DUCK_LAND_LIFT * k : WATER_Y;
+    return new THREE.Vector3(r.x, base + 0.12 * k, r.z);
+  }
   if (r.kind === 'fish') return new THREE.Vector3(r.x, WATER_Y - 0.3 * k, r.z);
   return new THREE.Vector3(r.x, WATER_Y, r.z);
 }

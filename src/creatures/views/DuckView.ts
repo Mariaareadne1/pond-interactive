@@ -24,6 +24,8 @@ export class DuckView extends CreatureView {
   private readonly wingR = new THREE.Group();
   private readonly feet: THREE.Mesh[] = [];
   private readonly eyes: THREE.Mesh[] = [];
+  private readonly legs: THREE.Mesh[] = [];
+  private legGeometry: THREE.BufferGeometry | null = null;
 
   constructor(id: string, seed: number, geo: CreatureGeometries, world: WorldUniforms) {
     super(id, 'duck', seed, world);
@@ -57,9 +59,16 @@ export class DuckView extends CreatureView {
       m.scale.z = s;
       this.inner.add(wing);
     }
+    // short legs, so a duck standing on the bank stands on its feet
+    const leg = new THREE.CylinderGeometry(0.017, 0.02, 0.09, 8);
+    leg.setAttribute('aAO', new THREE.BufferAttribute(new Float32Array(leg.getAttribute('position').count).fill(1), 1));
+    this.legGeometry = leg;
     for (const s of [-1, 1]) {
+      const shin = this.part(this.inner, leg, PART.duckFoot, { castShadow: false });
+      shin.position.set(0.02, -0.075, 0.075 * s);
+      this.legs.push(shin);
       const foot = this.part(this.inner, geo.foot, PART.duckFoot, { doubleSided: true, castShadow: false });
-      foot.position.set(0.02, -0.14, 0.09 * s);
+      foot.position.set(0.02, -0.12, 0.09 * s);
       this.feet.push(foot);
     }
     this.proxy.scale.set(0.45, 0.32, 0.32);
@@ -89,8 +98,16 @@ export class DuckView extends CreatureView {
     const paddle = p.paddle;
     this.feet[0].rotation.set(0, 0.25, Math.sin(paddle) * 0.7);
     this.feet[1].rotation.set(0, -0.25, Math.sin(paddle + Math.PI) * 0.7);
+    this.legs[0].rotation.z = Math.sin(paddle) * 0.35;
+    this.legs[1].rotation.z = Math.sin(paddle + Math.PI) * 0.35;
     // tucked away in flight
     const tuck = Math.min(1, p.lift * 2);
     for (const foot of this.feet) foot.position.x = 0.02 - tuck * 0.18;
+    for (const leg of this.legs) leg.position.x = 0.02 - tuck * 0.12;
+  }
+
+  dispose(): void {
+    this.legGeometry?.dispose();
+    super.dispose();
   }
 }

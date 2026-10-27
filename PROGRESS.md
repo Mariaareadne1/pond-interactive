@@ -18,14 +18,18 @@ Built autonomously from the brief, milestone by milestone, starting from a study
 ## Verification (latest run)
 
 - `npm run typecheck`, `npm run lint`: clean.
-- `npm test`: 52 unit tests pass.
-- `npm run test:e2e`: 17 Playwright tests pass against the dev server; `E2E_PROD=1 npm run test:e2e`: the same 17 against the production build.
+- `npm test`: 55 unit tests pass.
+- `npm run test:e2e`: 18 Playwright tests pass against the dev server; `E2E_PROD=1 npm run test:e2e`: the same 18 against the production build.
 - `npm run build`: passes (three.js dominates the bundle, as in MEADOW).
 - `scripts/verify-recording.mjs`: H.264 MP4, 1280×720, 237 frames in 3.98 s (≈59.5 fps).
 - `scripts/demo.mjs 1600 900`: H.264 MP4, 1600×900, 1547 frames in 25.96 s (≈59 fps); contact sheet in `docs/media/demo-contact-sheet.jpg`. Story: a fish blooms in and swims → a lily pad → the fish slips under it → a duck dabbles → a frog drawn on the bank hops onto the pad → feeding draws the fish out → rain.
 - `scripts/perf.mjs`: 8.7 ms/frame with 15 creatures at 1440×900 DPR 1; 17.7 ms at DPR 2 (load average ≈ 5.4 during the run).
 
 - Deployed on 2026-10-27 at the author's request: https://pond-interactive.vercel.app (Vercel project `pond-interactive`). Checked live: renders at 60 fps headless, drawing a fish works, no page errors.
+
+## After launch
+
+- Ducks can live on land as well as water (2026-10-27): draw one on the bank (a loop with a head on top, or Duck in the picker) and it stands on short legs, waddles, nibbles instead of dabbling, and can fly off to the pond. Dragging moves a duck freely between bank and water.
 
 ## Known gaps, said plainly
 

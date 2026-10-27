@@ -11,6 +11,7 @@ import { screenToGround, screenToWater, surfaceAt } from '../interaction/rays';
 import { clampToBank, clampToWater, WATER_Y } from '../scene/pondShape';
 import { FORMATION_DURATION, formationOrigin, formationRadius } from '../creatures/formation';
 import { worldLength } from '../creatures/scale';
+import { clampDuck, onLand as livesOnLand } from '../creatures/habitat';
 import { KIND_LABEL, type Kind } from '../creatures/types';
 import { draft } from './drawing';
 
@@ -97,7 +98,7 @@ export class PondApp {
 
   private beginFormation(r: CreatureRecord): void {
     const duration = this.engine.reducedMotion ? FORMATION_DURATION * 0.5 : FORMATION_DURATION;
-    const onLand = r.kind === 'frog';
+    const onLand = livesOnLand(r.kind, r.x, r.z);
     this.pond.expectFormation(r.id, { origin: formationOrigin(r), radius: formationRadius(r), duration, mode: onLand ? 0 : 1 });
     if (!onLand) {
       // the pigment spreads on the wet surface first; a ring follows as it settles
@@ -152,7 +153,13 @@ export class PondApp {
   }
 
   private dragPoint(kind: Kind, clientX: number, clientY: number): THREE.Vector3 | null {
-    return kind === 'frog' ? screenToGround(this.engine.camera, this.rect, clientX, clientY) ?? screenToWater(this.engine.camera, this.rect, clientX, clientY) : screenToWater(this.engine.camera, this.rect, clientX, clientY);
+    if (kind === 'frog') return screenToGround(this.engine.camera, this.rect, clientX, clientY) ?? screenToWater(this.engine.camera, this.rect, clientX, clientY);
+    // a duck follows the pointer onto the bank as readily as across the water
+    if (kind === 'duck') {
+      const hit = this.surfaceAt(clientX, clientY);
+      return hit.surface === 'paper' ? null : hit.point;
+    }
+    return screenToWater(this.engine.camera, this.rect, clientX, clientY);
   }
 
   beginDrag(id: string, clientX: number, clientY: number): void {
@@ -179,7 +186,8 @@ export class PondApp {
     if (kind === 'frog') {
       const pad = this.pond.padAt(tx, tz, 0.1);
       [x, z] = pad ? [tx, tz] : clampToBank(tx, tz);
-    } else [x, z] = clampToWater(tx, tz, kind === 'lily' ? 0.9 : 0.6);
+    } else if (kind === 'duck') [x, z] = clampDuck(tx, tz);
+    else [x, z] = clampToWater(tx, tz, kind === 'lily' ? 0.9 : 0.6);
     // keep it inside the frame too
     const ndc = new THREE.Vector3(x, WATER_Y + 0.3, z).project(this.engine.camera);
     if (Math.abs(ndc.x) > 0.97 || ndc.y < -1.05 || ndc.z > 1) return false;
@@ -335,7 +343,7 @@ export class PondApp {
     let copy: CreatureRecord;
     if (rec.kind === 'duck') {
       const parent = rec.parent ?? rec.id;
-      const [x, z] = clampToWater(ox - Math.cos(h) * len * 0.9, oz + Math.sin(h) * len * 0.9, 0.5);
+      const [x, z] = clampDuck(ox - Math.cos(h) * len * 0.9, oz + Math.sin(h) * len * 0.9);
       copy = { id: newId('duck'), kind: 'duck', x, z, heading: h, seed: newSeed(), size: 1, parent };
     } else {
       const [x, z] = rec.kind === 'frog' ? clampToBank(ox + len * 0.9, oz + 0.3) : placeFor(rec.kind, ox + Math.sin(h) * len * 0.8, oz + Math.cos(h) * len * 0.8);
@@ -344,7 +352,7 @@ export class PondApp {
       copy = { ...(extra as unknown as CreatureRecord), id: newId(rec.kind), seed: newSeed(), x, z };
       if (rec.kind === 'fish' && !rec.minnow) copy = { ...copy, pattern: copy.seed % 4 };
     }
-    this.pond.expectFormation(copy.id, { origin: formationOrigin(copy), radius: formationRadius(copy), duration: 0.9, mode: copy.kind === 'frog' ? 0 : 1 });
+    this.pond.expectFormation(copy.id, { origin: formationOrigin(copy), radius: formationRadius(copy), duration: 0.9, mode: livesOnLand(copy.kind, copy.x, copy.z) ? 0 : 1 });
     this.store.commit(addCreature(this.store.doc, copy), { selectedId: copy.id });
   }
 

@@ -1,7 +1,8 @@
 import { Controller, headingTo, type PondSense } from './base';
 import { DABBLE, duckPose, flightAt, FLY, PREEN, SHAKE, type DuckState, type FlightPlan } from '../behaviors/duck';
 import { DUCK_KEYS, type DuckKey, type Frame } from '../pose';
-import { clampToWater, edgeDistance, isWater, shoreGradient, WATER_Y } from '../../scene/pondShape';
+import { clampToBank, clampToWater, edgeDistance, groundHeight, isBank, isWater, shoreGradient, WATER_Y } from '../../scene/pondShape';
+import { DUCK_LAND_LIFT, duckOnLand } from '../habitat';
 import { noise2 } from '../../scene/noise';
 
 const LEASH = 3.6;
@@ -11,6 +12,8 @@ const WAKE_EVERY = 0.42;
  * A duck's life: paddling slowly about with a little wake, dabbling tail-up,
  * preening, flying a loop over the pond and skidding back down, shaking off
  * rain, paddling over to crumbs. A duckling follows its parent in a line.
+ * On the bank the same duck waddles instead, keeps to dry ground, nibbles
+ * at the grass, and can still take off from there.
  */
 export class DuckController extends Controller<DuckKey, DuckState> {
   private plan: FlightPlan | null = null;
@@ -22,10 +25,29 @@ export class DuckController extends Controller<DuckKey, DuckState> {
   /** For ducklings: who to follow and where in the line. */
   parentId: string | null = null;
   lineIndex = 0;
+  /** Height of what it is standing or floating on (eased, so it never pops). */
+  private baseY = WATER_Y;
+  private land: boolean;
 
   constructor(seed: number, x: number, z: number, heading: number, parentId: string | null) {
     super(DUCK_KEYS, seed, x, z, heading, parentId ? 'follow' : 'paddle');
     this.parentId = parentId;
+    this.land = duckOnLand(x, z);
+    this.baseY = this.groundBase();
+  }
+
+  /** Standing on the bank (rather than floating, or flying)? */
+  get onLand(): boolean {
+    return this.land && !this.airborne;
+  }
+
+  private groundBase(): number {
+    return duckOnLand(this.x, this.z) ? Math.max(WATER_Y, groundHeight(this.x, this.z)) + DUCK_LAND_LIFT * this.scale : WATER_Y;
+  }
+
+  placeAt(x: number, z: number): void {
+    super.placeAt(x, z);
+    this.land = duckOnLand(x, z);
   }
 
   get busy(): boolean {
@@ -69,6 +91,7 @@ export class DuckController extends Controller<DuckKey, DuckState> {
 
   /** Pick a heading and loop that keep the duck over the tile and land it on open water. */
   private planFlight(): FlightPlan {
+    const startOnLand = this.land;
     const candidates: FlightPlan[] = [];
     for (const d of [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.2, -2.2, Math.PI]) {
       for (const turn of [1, -1] as const) candidates.push({ x: this.x, z: this.z, heading: this.heading + d, radius: 3.2, turn });
@@ -79,7 +102,8 @@ export class DuckController extends Controller<DuckKey, DuckState> {
       for (let t = 0; t <= FLY.duration; t += 0.25) {
         const q = flightAt(p, t);
         if (edgeDistance(q.x, q.z) < 0.8) return false;
-        if (t < FLY.runEnd && !isWater(q.x, q.z, 0.2)) return false;
+        // a take-off run needs open water — or, from the bank, simply somewhere on the tile
+        if (t < FLY.runEnd && !startOnLand && !isWater(q.x, q.z, 0.2)) return false;
       }
       return true;
     };
@@ -101,6 +125,14 @@ export class DuckController extends Controller<DuckKey, DuckState> {
   }
 
   private avoidShore(dt: number): void {
+    if (this.land) {
+      // on the bank: keep to dry ground and inside the tile
+      const look = 0.8 * this.scale;
+      const ax = this.x + Math.cos(this.heading) * look;
+      const az = this.z - Math.sin(this.heading) * look;
+      if (!isBank(ax, az)) this.steerToward(this.heading + (this.seed % 2 ? 1 : -1) * 1.2, 1.8, dt);
+      return;
+    }
     const look = 1.1 * this.scale;
     const ax = this.x + Math.cos(this.heading) * look;
     const az = this.z - Math.sin(this.heading) * look;
@@ -113,14 +145,16 @@ export class DuckController extends Controller<DuckKey, DuckState> {
   private move(distance: number): void {
     let nx = this.x + Math.cos(this.heading) * distance;
     let nz = this.z - Math.sin(this.heading) * distance;
-    if (!isWater(nx, nz, 0.4 * this.scale)) [nx, nz] = clampToWater(nx, nz, 0.4 * this.scale);
+    if (this.land) {
+      if (!isBank(nx, nz)) [nx, nz] = clampToBank(nx, nz);
+    } else if (!isWater(nx, nz, 0.4 * this.scale)) [nx, nz] = clampToWater(nx, nz, 0.4 * this.scale);
     this.x = nx;
     this.z = nz;
   }
 
   private wake(dt: number, sense: PondSense): void {
     this.wakeTimer += dt;
-    if (this.speed < 0.08 || this.wakeTimer < WAKE_EVERY) return;
+    if (this.land || this.speed < 0.08 || this.wakeTimer < WAKE_EVERY) return;
     this.wakeTimer = 0;
     this.wakeSide = -this.wakeSide;
     // rings shed alternately off each side of the tail make a soft V behind
@@ -131,7 +165,8 @@ export class DuckController extends Controller<DuckKey, DuckState> {
 
   private paddle(dt: number, sense: PondSense): void {
     // drift, pause, drift: speed rises and falls on a slow noise
-    const want = (0.16 + 0.22 * Math.max(0, noise2(this.time * 0.12, this.seed * 2.3) + 0.3)) * this.scale;
+    // a waddle on the bank is a little slower than a paddle
+    const want = (0.16 + 0.22 * Math.max(0, noise2(this.time * 0.12, this.seed * 2.3) + 0.3)) * this.scale * (this.land ? 0.7 : 1);
     this.speed += (want - this.speed) * Math.min(1, dt * 0.8);
     this.heading += noise2(this.time * 0.18, this.seed * 4.1) * 0.6 * dt;
     if (Math.hypot(this.anchorX - this.x, this.anchorZ - this.z) > LEASH * this.scale) {
@@ -155,7 +190,9 @@ export class DuckController extends Controller<DuckKey, DuckState> {
 
   update(dt: number, sense: PondSense): Frame<DuckKey> {
     this.advance(dt);
-    let y = WATER_Y;
+    // ease onto whatever it stands or floats on, so stepping between bank and water never pops
+    this.baseY += (this.groundBase() - this.baseY) * Math.min(1, dt * (this.airborne ? 2.5 : 8));
+    let y = this.baseY;
     if (!this.held) {
       switch (this.state) {
         case 'paddle':
@@ -223,7 +260,7 @@ export class DuckController extends Controller<DuckKey, DuckState> {
           this.x = f.x;
           this.z = f.z;
           this.heading = f.heading;
-          y = WATER_Y + f.y;
+          y = this.baseY + f.y;
           this.speed = 0;
           // feet pattering on the water during the take-off run
           if (this.stateTime < FLY.runEnd + 0.2 && this.stateTime - this.flightMarks.run > 0.13) {
@@ -236,6 +273,7 @@ export class DuckController extends Controller<DuckKey, DuckState> {
             sense.splash(f.x, f.z, 0.7);
           }
           if (this.stateTime >= FLY.duration) {
+            this.land = duckOnLand(this.x, this.z);
             this.settle(0.4);
             this.onMoved?.(this.x, this.z);
           }
@@ -243,7 +281,7 @@ export class DuckController extends Controller<DuckKey, DuckState> {
         }
       }
     }
-    const pose = duckPose(this.state, this.stateTime, this.seed, Math.min(1, this.speed / (0.4 * this.scale)));
+    const pose = duckPose(this.state, this.stateTime, this.seed, Math.min(1, this.speed / (0.4 * this.scale)), this.onLand);
     const shown = this.shown(pose);
     return { x: this.x, y, z: this.z, heading: this.heading, pose: shown, phase: 0 };
   }

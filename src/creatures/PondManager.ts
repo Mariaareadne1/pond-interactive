@@ -19,6 +19,7 @@ import type { Ripples } from '../scene/water';
 import type { PondLife } from '../scene/life';
 import { isWater } from '../scene/pondShape';
 import { formationOrigin, type FormationRequest } from './formation';
+import { onLand } from './habitat';
 
 /**
  * Keeps the living pond in step with the document. The document says what
@@ -140,7 +141,7 @@ export class PondManager {
     view.root.rotation.y = r.heading;
     const req = this.pending.get(r.id) ?? null;
     this.pending.delete(r.id);
-    const fallback: FormationRequest = { origin: formationOrigin(r), radius: entry.controller.scale * 0.8, duration: FADE_IN_DURATION, mode: r.kind === 'frog' ? 0 : 1 };
+    const fallback: FormationRequest = { origin: formationOrigin(r), radius: entry.controller.scale * 0.8, duration: FADE_IN_DURATION, mode: onLand(r.kind, r.x, r.z) ? 0 : 1 };
     entry.formation = { t: 0, req: req ?? fallback };
     view.setFormation(0, entry.formation.req.origin, entry.formation.req.radius, entry.formation.req.mode);
     entry.view = view;
@@ -304,7 +305,7 @@ export class PondManager {
   private touchPadsByDucks(): void {
     const pads = this.padInfos();
     for (const e of this.entries.values()) {
-      if (!(e.controller instanceof DuckController) || e.padTouchCooldown > 0 || e.controller.airborne) continue;
+      if (!(e.controller instanceof DuckController) || e.padTouchCooldown > 0 || e.controller.airborne || e.controller.onLand) continue;
       for (const pad of pads) {
         if (Math.hypot(pad.x - e.controller.x, pad.z - e.controller.z) < pad.radius + 0.35 * e.controller.scale) {
           this.sense.touchPad(pad.id, e.controller.x, e.controller.z, 0.5);
@@ -494,7 +495,8 @@ export class PondManager {
       const c = e.controller;
       const d = Math.hypot(c.x - x, c.z - z);
       if (c instanceof FishController && d < 11) c.feed();
-      if (c instanceof DuckController && !c.parentId && d < 9) c.feed();
+      // ducks on the bank stay put; ducks on the water paddle over
+      if (c instanceof DuckController && !c.parentId && !c.onLand && d < 9) c.feed();
     }
     return added;
   }

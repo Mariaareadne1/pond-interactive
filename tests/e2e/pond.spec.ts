@@ -66,10 +66,10 @@ test.describe('pond', () => {
     await expect(page.locator('.toast')).toContainText('pond');
     await drawStroke(page, strokes.lily(720, 430, 0.12));
     await expect(page.locator('.toast')).toContainText('bigger');
-    // a duck, forced, far up the bank
-    await page.getByRole('radio', { name: 'Duck' }).click();
+    // a fish, forced, far up the bank
+    await page.getByRole('radio', { name: 'Fish' }).click();
     const bank = await toScreen(page, -11, 0.4, 7.5);
-    await drawStroke(page, strokes.duck(bank.x, bank.y, 0.6));
+    await drawStroke(page, strokes.fish(bank.x, bank.y, 0.6));
     await expect(page.locator('.toast')).toContainText('need water');
     // a frog, forced, in the middle of the pond
     await page.getByRole('radio', { name: 'Frog' }).click();
@@ -77,6 +77,33 @@ test.describe('pond', () => {
     await drawStroke(page, strokes.frog(c.x, c.y));
     await expect(page.locator('.toast')).toContainText('Frogs like');
     expect(await creatures(page)).toHaveLength(0);
+  });
+
+  test('a duck drawn on the bank stands there, waddles about and nibbles instead of dabbling', async ({ page }) => {
+    await openPond(page);
+    const bank = await toScreen(page, -10.6, 0.4, 6.8);
+    await drawStroke(page, strokes.duck(bank.x, bank.y, 0.8));
+    const [duck] = await creatures(page);
+    expect(duck.kind).toBe('duck');
+    const onBank = await page.evaluate((id) => {
+      const p = window.__pond!;
+      const c = p.engine.pond.get(id)!.controller as unknown as { onLand: boolean };
+      return c.onLand;
+    }, duck.id);
+    expect(onBank).toBe(true);
+    await waitFormed(page, duck.id);
+    const start = (await frame(page, duck.id))!;
+    const roll = await sample(page, duck.id, 6, 'roll');
+    expect(roll.max - roll.min).toBeGreaterThan(0.1);
+    const after = (await frame(page, duck.id))!;
+    expect(Math.hypot(after.x - start.x, after.z - start.z)).toBeGreaterThan(0.3);
+    await page.evaluate((id) => window.__pond!.store.set({ selectedId: id }), duck.id);
+    await expect(page.locator('.creature-bar [data-action="dabble"]')).toHaveText('Nibble');
+    // forced Duck on the bank works too
+    await page.getByRole('radio', { name: 'Duck' }).click();
+    const other = await toScreen(page, 10.8, 0.4, -5.5);
+    await drawStroke(page, strokes.frog(other.x, other.y, 1.4));
+    expect((await creatures(page)).map((c) => c.kind)).toEqual(['duck', 'duck']);
   });
 
   test('the type picker forces a kind; an unsure drawing offers "make it a … instead"', async ({ page }) => {

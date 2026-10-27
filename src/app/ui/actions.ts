@@ -1,4 +1,5 @@
 import type { CreatureRecord, PondDoc } from '../../state/document';
+import { duckOnLand } from '../../creatures/habitat';
 
 /** The contextual actions each creature offers, in bar order (keys 1–4 follow this order). */
 export interface CreatureAction {
@@ -19,7 +20,7 @@ export function actionsFor(rec: CreatureRecord, doc: PondDoc): CreatureAction[] 
     }
     case 'duck':
       return [
-        { id: 'dabble', label: 'Dabble' },
+        { id: 'dabble', label: duckOnLand(rec.x, rec.z) ? 'Nibble' : 'Dabble' },
         { id: 'preen', label: 'Preen' },
         { id: 'fly', label: 'Fly' },
         { id: 'ducklings', label: rec.parent ? 'Another duckling' : 'Ducklings' },

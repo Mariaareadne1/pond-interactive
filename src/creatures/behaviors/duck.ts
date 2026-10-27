@@ -33,6 +33,35 @@ export function paddlePose(t: number, seed: number, speed = 0.5): Pose<DuckKey> 
   return p;
 }
 
+/** On the bank: a waddle — rolling side to side on short steps, head nodding with each one. */
+export function waddlePose(t: number, seed: number, speed = 0.5): Pose<DuckKey> {
+  const p = emptyPose(DUCK_KEYS);
+  life(p, t, seed);
+  const step = t * (4 + 7 * speed);
+  const sway = Math.min(1, speed * 1.6 + 0.15);
+  p.roll = 0.13 * Math.sin(step) * sway;
+  p.bob = 0.018 * Math.abs(Math.sin(step)) * sway;
+  p.headPitch += 0.09 * Math.sin(step * 2) * sway;
+  p.tail += 0.12 * Math.sin(step) * sway;
+  // feet swing forward and back in turn (the paddle phase drives them)
+  p.paddle = step;
+  p.pitch = 0.05 - 0.02 * speed;
+  return p;
+}
+
+/** On the bank, a dabble becomes a nibble at the grass: tip forward, peck, peck, back up. */
+export function nibblePose(t: number, seed: number): Pose<DuckKey> {
+  const p = dabblePose(t, seed);
+  const down = window4(t, 0.25, 0.6, 2.0, 2.4);
+  p.pitch *= 0.35;
+  p.neck = -0.9 * down;
+  p.headPitch = -0.7 * down + 0.25 * Math.max(0, Math.sin(t * 13)) * window4(t, 0.7, 0.8, 1.8, 1.9);
+  p.tail = 0.2 * down;
+  p.bob = 0;
+  p.paddle = 0;
+  return p;
+}
+
 export const DABBLE = { duration: 3.4 };
 
 /** Tips forward until only the tail is in the air, wiggles, pops back up and shakes. */
@@ -171,12 +200,12 @@ export function flyPose(t: number, seed: number): Pose<DuckKey> {
   return p;
 }
 
-export function duckPose(state: DuckState, t: number, seed: number, speed = 0.5): Pose<DuckKey> {
+export function duckPose(state: DuckState, t: number, seed: number, speed = 0.5, onLand = false): Pose<DuckKey> {
   switch (state) {
-    case 'dabble': return dabblePose(t, seed);
+    case 'dabble': return onLand ? nibblePose(t, seed) : dabblePose(t, seed);
     case 'preen': return preenPose(t, seed);
     case 'fly': return flyPose(t, seed);
     case 'shake': return shakePose(t, seed);
-    default: return paddlePose(t, seed, speed);
+    default: return onLand ? waddlePose(t, seed, speed) : paddlePose(t, seed, speed);
   }
 }

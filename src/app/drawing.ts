@@ -5,11 +5,13 @@ import type { Pt, StrokeAnalysis } from '../interaction/stroke';
 import { screenToGround, screenToWater } from '../interaction/rays';
 import { classifyWater, facingFor, measureShape, type ShapeFeatures } from '../interaction/shape';
 import { clampToBank, pondSDF } from '../scene/pondShape';
+import { clampDuck } from '../creatures/habitat';
 import { BODY_LENGTH, KIND_LABEL, MINNOW_SCALE, type Kind } from '../creatures/types';
 
 /**
  * Turning a finished drawing into a creature record: where it was drawn
- * (water, bank or a lily pad) and its shape decide the kind; the drawing
+ * (water, bank or a lily pad) and its shape decide the kind — on land, a
+ * loop with a head on top is a duck and anything else a frog; the drawing
  * sets only position, size (clamped ±15%), facing and kind — never the
  * geometry — so a bad drawing still makes a good creature.
  */
@@ -60,11 +62,22 @@ export function draft(app: PondApp, points: readonly Pt[], a: StrokeAnalysis, dr
   const onLand = where.surface === 'bank' || !!pad;
   if (drawKind !== 'auto') kind = drawKind;
   else if (onLand) {
-    kind = 'frog';
-    // a big loop on a pad might have meant another pad, or something swimming under it
-    if (pad && f.length > 160) {
-      confident = false;
-      alternatives = ['lily', 'fish'];
+    const c = classifyWater(f);
+    if (!pad && c.kind === 'duck' && f.headBump >= 0.5) {
+      // a head on top, on the bank: a duck out for a waddle
+      kind = 'duck';
+      confident = c.confident;
+      alternatives = ['frog'];
+    } else {
+      kind = 'frog';
+      // a big loop on a pad might have meant another pad, or something swimming under it
+      if (pad && f.length > 160) {
+        confident = false;
+        alternatives = ['lily', 'fish'];
+      } else if (!pad && f.length > 140) {
+        confident = false;
+        alternatives = ['duck'];
+      }
     }
   } else {
     const c = classifyWater(f);
@@ -94,6 +107,12 @@ export function draft(app: PondApp, points: readonly Pt[], a: StrokeAnalysis, dr
       } else if (pondSDF(x, z) > -1.2) [x, z] = clampToBank(x, z);
       else return { message: MESSAGES.frogInDeep };
     }
+  } else if (kind === 'duck') {
+    // ducks stand on the bank as happily as they float
+    if (where.surface === 'bank') {
+      const g = screenToGround(app.engine.camera, app.rect, a.foot.x, a.foot.y) ?? where.point;
+      [x, z] = clampDuck(g.x, g.z);
+    } else [x, z] = placeFor(kind, x, z);
   } else {
     if (where.surface === 'bank') {
       // just over the edge of the water: nudge in; well up the bank: not here
@@ -103,7 +122,7 @@ export function draft(app: PondApp, points: readonly Pt[], a: StrokeAnalysis, dr
   }
 
   // how big, and which way it faces
-  const surface = kind === 'frog' && !pad ? 'ground' : 'water';
+  const surface = (kind === 'frog' && !pad) || (kind === 'duck' && where.surface === 'bank') ? 'ground' : 'water';
   const along = kind === 'lily' ? Math.max(f.length, f.width) : f.length;
   const drawn = worldExtent(app, f, along, surface);
   let minnow = false;
