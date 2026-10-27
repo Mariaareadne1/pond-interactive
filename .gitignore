@@ -9,3 +9,4 @@ artifacts/
 # reference photos are inspiration only — usage rights not established
 references/*
 !references/README.md
+.env*
